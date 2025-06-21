@@ -296,12 +296,6 @@ sudo systemctl enable fail2ban
 sudo systemctl start fail2ban
 ```
 
-## Support
-
-- **Documentation**: [https://github.com/stealthflow/stealthflow/wiki](https://github.com/stealthflow/stealthflow/wiki)
-- **Issues**: [https://github.com/stealthflow/stealthflow/issues](https://github.com/stealthflow/stealthflow/issues)
-- **Discussions**: [https://github.com/stealthflow/stealthflow/discussions](https://github.com/stealthflow/stealthflow/discussions)
-
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](../LICENSE) file for details.

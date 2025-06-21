@@ -96,8 +96,6 @@ python -m pytest tests/
 - Input validation and rate limiting
 - Perfect forward secrecy with rotating keys
 
-**Security Issues**: Please email security@stealthflow.org instead of creating public issues.
-
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.

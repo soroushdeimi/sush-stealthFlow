@@ -1,6 +1,8 @@
 # StealthFlow .gitignore
 
+# ===========================================
 # Python
+# ===========================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -18,26 +20,59 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
 
-# Virtual environments
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# ===========================================
+# Virtual Environments
+# ===========================================
 venv/
 env/
 ENV/
 env.bak/
 venv.bak/
+.venv/
+.python-version
 
-# IDEs
+# ===========================================
+# IDEs and Editors
+# ===========================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
 
-# OS files
+# ===========================================
+# OS-generated files
+# ===========================================
 .DS_Store
 .DS_Store?
 ._*
@@ -45,110 +80,204 @@ venv.bak/
 .Trashes
 ehthumbs.db
 Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
 
-# Logs
+# ===========================================
+# Logs and Runtime Data
+# ===========================================
 *.log
 logs/
-
-# Runtime data
+log/
 pids
 *.pid
 *.seed
 *.pid.lock
+*.sock
 
-# Coverage directory used by tools like istanbul
-coverage/
-*.cover
-.nyc_output
-
-# Dependency directories
+# ===========================================
+# Node.js (for signaling server)
+# ===========================================
 node_modules/
-
-# Optional npm cache directory
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
 .npm
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
 .yarn-integrity
+.node_repl_history
+*.tgz
+package-lock.json
 
-# dotenv environment variables file
+# ===========================================
+# Environment and Configuration
+# ===========================================
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-
-# Temporary files
-tmp/
-temp/
-*.tmp
-*.temp
-
-# User-specific configuration files
-stealthflow_profiles.yaml
-stealthflow_settings.json
-
-# SSL certificates and keys
-*.pem
-*.key
-*.crt
-*.p12
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Backup files
-*.bak
-*.backup
-
-# Development and debug files
-debug_*
-*_debug*
-test_config*
-dev_*
-
-# Deployment and audit files
-DEPLOYMENT_CHECKLIST.md
-SECURITY_AUDIT_REPORT.md
-prepare_deployment*.py
-validate_for_github.py
-fix_persian*.py
-
-# Docker volumes
-volumes/
-
-# Kubernetes secrets
-secrets/
-# Temporary development files
-tmp/
+.env.*
 
 # User-specific configuration files
 stealthflow_profiles.yaml
 stealthflow_settings.json
 current_config.json
+config.json
+profiles.json
+settings.json
 
-# Python cache and virtual environment
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-venv/
-*.env
+# ===========================================
+# Temporary and Cache Files
+# ===========================================
+tmp/
+temp/
+*.tmp
+*.temp
+.cache/
+cache/
 
-# OS-generated files
-.DS_Store
-Thumbs.db
+# ===========================================
+# SSL/TLS Certificates and Keys
+# ===========================================
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.cer
+certificates/
+certs/
+ssl/
 
-# IDE configuration files
-.vscode/
-.idea/
+# ===========================================
+# Database Files
+# ===========================================
+*.db
+*.sqlite
+*.sqlite3
+*.db3
+database/
+data/
 
-# Log files
-*.log
+# ===========================================
+# Backup Files
+# ===========================================
+*.bak
+*.backup
+backups/
+backup/
+*_backup*
+*.orig
+
+# ===========================================
+# Xray and Proxy Configuration
+# ===========================================
+xray-config.json
+nginx.conf
+# Keep templates but ignore actual configs
+server/configs/xray-config.json
+server/nginx/nginx.conf
+!server/configs/xray-config.json.template
+!server/nginx/nginx.conf.template
+
+# ===========================================
+# Generated Client Configurations
+# ===========================================
+stealthflow-configs/
+client-configs/
+*-client.json
+*-reality.json
+*-trojan.json
+share-urls.txt
+
+# ===========================================
+# Docker and Container Data
+# ===========================================
+volumes/
+docker-data/
+.docker/
+
+# ===========================================
+# Kubernetes and Deployment
+# ===========================================
+secrets/
+secret/
+k8s-secrets/
+
+# ===========================================
+# Development and Debug Files
+# ===========================================
+debug_*
+*_debug*
+test_config*
+dev_*
+*.debug
+.debugger/
+
+# ===========================================
+# Deployment and Audit Files
+# ===========================================
+DEPLOYMENT_CHECKLIST.md
+SECURITY_AUDIT_REPORT.md
+prepare_deployment*.py
+validate_for_github.py
+fix_persian*.py
+*_validation.py
+*_audit.py
+CLEANUP_*.md
+PHASE*_*.md
+
+# ===========================================
+# Monitoring and Metrics
+# ===========================================
+metrics/
+prometheus-data/
+grafana-data/
+monitoring-data/
+
+# ===========================================
+# Application Specific
+# ===========================================
+# Generated URLs and connection strings
+*.url
+connection-*.txt
+server-*.txt
+
+# Profile backups
+profiles_backup_*.json
+
+# Health check files
+health.json
+status.json
+
+# Lock files
+*.lock
+
+# ===========================================
+# Testing Files
+# ===========================================
+test_profiles.yaml
+test_*.json
+testing/
+.coverage/
+
+# ===========================================
+# Final catch-all patterns
+# ===========================================
+# Any file ending with _local, _dev, _test
+*_local.*
+*_dev.*
+*_test.*
+
+# Sensitive data patterns
+*password*
+*secret*
+*private*
+*auth*
+!**/templates/**
+!**/examples/**
+!**/sample/**
+!README*
+!CONTRIBUTING*
+!LICENSE*

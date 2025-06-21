@@ -1,0 +1,167 @@
+# Default values for stealthflow
+# This is a YAML-formatted file
+
+replicaCount: 1
+
+image:
+  repository: ghcr.io/soroushdeimi/sush-stealthflow
+  pullPolicy: IfNotPresent
+  tag: ""
+
+signaling:
+  enabled: true
+  image:
+    repository: ghcr.io/soroushdeimi/sush-stealthflow-signaling
+    pullPolicy: IfNotPresent
+    tag: ""
+  replicaCount: 1
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  runAsUser: 1000
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+    - ALL
+    add:
+    - NET_BIND_SERVICE
+
+service:
+  type: LoadBalancer
+  ports:
+    http: 80
+    https: 443
+    reality: 444
+  health:
+    type: ClusterIP
+    port: 9000
+
+signaling:
+  service:
+    type: LoadBalancer
+    port: 8765
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+  hosts:
+    - host: example.com
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: cdn1.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: cdn2.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+    - host: cdn3.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: stealthflow-tls
+      hosts:
+        - example.com
+        - cdn1.example.com
+        - cdn2.example.com
+        - cdn3.example.com
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size:
+    config: 1Gi
+    logs: 5Gi
+    certs: 1Gi
+
+config:
+  domain: "example.com"
+  email: "admin@example.com"
+  
+secrets:
+  # These will be generated automatically if not provided
+  uuid: ""
+  trojanPassword: ""
+  realityPrivateKey: ""
+  realityPublicKey: ""
+  realityShortId: ""
+
+monitoring:
+  enabled: false
+  prometheus:
+    enabled: false
+    port: 9090
+  grafana:
+    enabled: false
+    port: 3000
+    # IMPORTANT: Change this password in production or set it via a secret
+    # It is highly recommended to use --set grafana.adminPassword=<your-secure-password> during helm install
+    adminPassword: ""
+
+networkPolicy:
+  enabled: true
+  ingress:
+    enabled: true
+  egress:
+    enabled: true
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+backup:
+  enabled: false
+  schedule: "0 2 * * *"
+  retention: "7d"
+
+healthcheck:
+  enabled: true
+  path: /health
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3

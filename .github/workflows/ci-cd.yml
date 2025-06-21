@@ -1,0 +1,325 @@
+name: StealthFlow CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    name: Test & Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov bandit safety
+        
+    - name: Run Python tests
+      run: |
+        pytest tests/ --cov=client --cov-report=xml
+        
+    - name: Security scan with Bandit
+      run: |
+        bandit -r client/ p2p/ utils/ -f json -o bandit-report.json || true
+        
+    - name: Check dependencies for vulnerabilities
+      run: |
+        safety check --json --output safety-report.json || true
+        
+    - name: Lint Python code
+      run: |
+        pip install flake8
+        flake8 client/ p2p/ utils/ --max-line-length=120 --extend-ignore=E203,W503
+        
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          coverage.xml
+          bandit-report.json
+          safety-report.json
+
+  docker-build:
+    name: Build Docker Images
+    runs-on: ubuntu-latest
+    needs: test
+    
+    permissions:
+      contents: read
+      packages: write
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Build and push main image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: Build and push signaling image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.signaling
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-signaling:${{ github.sha }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: 'trivy-results.sarif'
+        
+    - name: Run custom security audit
+      run: |
+        chmod +x ./scripts/security-audit.sh
+        ./scripts/security-audit.sh -t all -v || true
+        
+    - name: Upload security audit results
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-audit
+        path: ./security-audit-*/
+
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [test, docker-build, security-audit]
+    if: github.ref == 'refs/heads/develop'
+    
+    environment:
+      name: staging
+      url: https://staging.stealthflow.example.com
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+        
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_STAGING }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        
+    - name: Deploy to staging
+      run: |
+        export KUBECONFIG=kubeconfig
+        envsubst < k8s/stealthflow.yaml | kubectl apply -f -
+        kubectl wait --for=condition=available --timeout=300s deployment/stealthflow-server -n stealthflow
+      env:
+        DOMAIN: staging.stealthflow.example.com
+        EMAIL: admin@example.com
+        
+    - name: Run integration tests
+      run: |
+        chmod +x ./scripts/benchmark.sh
+        # Add staging server integration tests here
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test, docker-build, security-audit]
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    environment:
+      name: production
+      url: https://stealthflow.example.com
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+        
+    - name: Configure kubectl
+      run: |
+        echo "${{ secrets.KUBE_CONFIG_PRODUCTION }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        
+    - name: Create backup
+      run: |
+        export KUBECONFIG=kubeconfig
+        kubectl create job backup-$(date +%Y%m%d-%H%M%S) --from=cronjob/stealthflow-backup -n stealthflow || true
+        
+    - name: Deploy to production
+      run: |
+        export KUBECONFIG=kubeconfig
+        envsubst < k8s/stealthflow.yaml | kubectl apply -f -
+        kubectl wait --for=condition=available --timeout=600s deployment/stealthflow-server -n stealthflow
+      env:
+        DOMAIN: stealthflow.example.com
+        EMAIL: admin@example.com
+        
+    - name: Verify deployment
+      run: |
+        export KUBECONFIG=kubeconfig
+        kubectl get pods -n stealthflow
+        kubectl logs -l app=stealthflow-server -n stealthflow --tail=50
+        
+    - name: Run production smoke tests
+      run: |
+        # Add production verification tests here
+        curl -f https://stealthflow.example.com/health
+
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    needs: deploy-production
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Generate changelog from commits since last tag
+        PREV_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
+        if [ -n "$PREV_TAG" ]; then
+          CHANGELOG=$(git log --pretty=format:"- %s" $PREV_TAG..HEAD)
+        else
+          CHANGELOG=$(git log --pretty=format:"- %s")
+        fi
+        echo "changelog<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+        
+    - name: Create GitHub Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: StealthFlow ${{ github.ref_name }}
+        body: |
+          ## Changes in this Release
+          
+          ${{ steps.changelog.outputs.changelog }}
+          
+          ## Docker Images
+          
+          - Server: `ghcr.io/${{ github.repository }}:${{ github.ref_name }}`
+          - Signaling: `ghcr.io/${{ github.repository }}-signaling:${{ github.sha }}`
+          
+          ## Installation
+          
+          ```bash
+          # Quick install
+          curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/server/scripts/install.sh | bash
+          
+          # Docker deployment
+          docker run -d ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          ```
+          
+          ## Security
+          
+          This release includes security scans and vulnerability assessments. Check the Actions tab for detailed reports.
+        draft: false
+        prerelease: false
+
+  cleanup:
+    name: Cleanup
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    
+    steps:
+    - name: Delete old artifacts
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            run_id: context.runId,
+          });
+          
+          // Keep only the latest 5 artifacts
+          const sortedArtifacts = artifacts.data.artifacts
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+            .slice(5);
+            
+          for (const artifact of sortedArtifacts) {
+            await github.rest.actions.deleteArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: artifact.id,
+            });
+          }

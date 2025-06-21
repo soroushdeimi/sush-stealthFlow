@@ -1,0 +1,140 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for StealthFlow
+title: "[Feature] "
+labels: ["enhancement", "feature-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible to help us understand your request.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-submission Checks
+      description: Please verify these before submitting
+      options:
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I have checked the roadmap and planned features
+          required: true
+        - label: This feature aligns with StealthFlow's goals (anti-censorship, privacy, security)
+          required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component would this feature affect?
+      options:
+        - Client (GUI)
+        - Client (CLI)
+        - Server
+        - P2P System
+        - Installation/Setup
+        - Documentation
+        - Monitoring
+        - Security
+        - Performance
+        - Cross-component
+        - New Component
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Low (Nice to have)
+        - Medium (Would be helpful)
+        - High (Important for my use case)
+        - Critical (Blocking my usage)
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve? What's the current limitation?
+      placeholder: Describe the issue or limitation you're facing
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your ideal solution
+      placeholder: How would you like this problem to be solved?
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case
+      description: Describe how you would use this feature
+      placeholder: |
+        - Who would benefit from this feature?
+        - In what scenarios would it be used?
+        - How often would you use it?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What alternative solutions or workarounds have you considered?
+      placeholder: Describe any alternative approaches you've thought about
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation Ideas
+      description: If you have ideas about how this could be implemented, share them here
+      placeholder: |
+        - Technical approach
+        - UI/UX considerations
+        - Configuration requirements
+        - Compatibility concerns
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Examples
+      description: Provide examples, mockups, or references from other projects
+      placeholder: |
+        - Similar features in other tools
+        - Screenshots or mockups
+        - Code examples
+        - Documentation examples
+
+  - type: checkboxes
+    id: complexity
+    attributes:
+      label: Implementation Complexity
+      description: How complex do you think this feature would be to implement?
+      options:
+        - label: Simple (minor changes, quick implementation)
+        - label: Moderate (some development work needed)
+        - label: Complex (significant development effort)
+        - label: Major (requires architectural changes)
+
+  - type: checkboxes
+    id: breaking
+    attributes:
+      label: Breaking Changes
+      description: Would this feature require breaking changes?
+      options:
+        - label: This feature might require breaking changes to existing functionality
+        - label: This feature should be backward compatible
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or references about the feature request

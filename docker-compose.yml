@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  stealthflow-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stealthflow-server
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+      - "9000:9000"
+    volumes:
+      - ./server/configs:/app/configs
+      - ./server/nginx:/etc/nginx/conf.d
+      - ssl-certs:/etc/ssl/certs
+    environment:
+      - DOMAIN=${DOMAIN}
+      - EMAIL=${EMAIL}
+      - UUID=${UUID}
+      - TROJAN_PASSWORD=${TROJAN_PASSWORD}
+    networks:
+      - stealthflow-network
+
+  stealthflow-signaling:
+    build:
+      context: .
+      dockerfile: Dockerfile.signaling
+    container_name: stealthflow-signaling
+    restart: unless-stopped
+    ports:
+      - "8765:8765"
+    networks:
+      - stealthflow-network
+
+networks:
+  stealthflow-network:
+    driver: bridge
+
+volumes:
+  ssl-certs:

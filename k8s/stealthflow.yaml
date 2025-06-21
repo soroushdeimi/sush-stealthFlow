@@ -1,0 +1,450 @@
+# StealthFlow Kubernetes Manifests
+# This file contains multiple Kubernetes resources separated by ---
+# Apply with: kubectl apply -f stealthflow.yaml
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: stealthflow
+  labels:
+    name: stealthflow
+    app: stealthflow
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stealthflow-config
+  namespace: stealthflow
+data:
+  domain: "example.com"
+  email: "admin@example.com"
+
+---
+
+apiVersion: v1
+kind: Secret
+metadata:
+  name: stealthflow-secrets
+  namespace: stealthflow
+type: Opaque
+data:
+  # IMPORTANT: These values must be base64 encoded before applying
+  # Generate them using the setup scripts or manually:
+  # echo -n "your-uuid-here" | base64
+  # echo -n "your-trojan-password" | base64
+  # echo -n "your-reality-private-key" | base64
+  # echo -n "your-reality-public-key" | base64
+  # echo -n "your-reality-short-id" | base64
+  uuid: ""
+  trojan-password: ""
+  reality-private-key: ""
+  reality-public-key: ""
+  reality-short-id: ""
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stealthflow-config-pvc
+  namespace: stealthflow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stealthflow-logs-pvc
+  namespace: stealthflow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: letsencrypt-certs-pvc
+  namespace: stealthflow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stealthflow-server
+  namespace: stealthflow
+  labels:
+    app: stealthflow-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stealthflow-server
+  template:
+    metadata:
+      labels:
+        app: stealthflow-server
+    spec:
+      containers:
+      - name: stealthflow-server
+        image: stealthflow/server:latest
+        ports:
+        - containerPort: 80
+          name: http
+        - containerPort: 443
+          name: https
+        - containerPort: 444
+          name: reality
+        - containerPort: 9000
+          name: health
+        env:
+        - name: DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: stealthflow-config
+              key: domain
+        - name: EMAIL
+          valueFrom:
+            configMapKeyRef:
+              name: stealthflow-config
+              key: email
+        - name: UUID
+          valueFrom:
+            secretKeyRef:
+              name: stealthflow-secrets
+              key: uuid
+        - name: TROJAN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: stealthflow-secrets
+              key: trojan-password
+        - name: REALITY_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: stealthflow-secrets
+              key: reality-private-key
+        - name: REALITY_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: stealthflow-secrets
+              key: reality-public-key
+        - name: REALITY_SHORT_ID
+          valueFrom:
+            secretKeyRef:
+              name: stealthflow-secrets
+              key: reality-short-id
+        volumeMounts:
+        - name: config-volume
+          mountPath: /etc/xray
+        - name: logs-volume
+          mountPath: /var/log
+        - name: certs-volume
+          mountPath: /etc/letsencrypt
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9000
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 9000
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+            add:
+            - NET_BIND_SERVICE
+      volumes:
+      - name: config-volume
+        persistentVolumeClaim:
+          claimName: stealthflow-config-pvc
+      - name: logs-volume
+        persistentVolumeClaim:
+          claimName: stealthflow-logs-pvc
+      - name: certs-volume
+        persistentVolumeClaim:
+          claimName: letsencrypt-certs-pvc
+      restartPolicy: Always
+      securityContext:
+        fsGroup: 1000
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: stealthflow-server-service
+  namespace: stealthflow
+  labels:
+    app: stealthflow-server
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: 443
+    protocol: TCP
+    name: https
+  - port: 444
+    targetPort: 444
+    protocol: TCP
+    name: reality
+  selector:
+    app: stealthflow-server
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: stealthflow-health-service
+  namespace: stealthflow
+  labels:
+    app: stealthflow-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 9000
+    targetPort: 9000
+    protocol: TCP
+    name: health
+  selector:
+    app: stealthflow-server
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stealthflow-signaling
+  namespace: stealthflow
+  labels:
+    app: stealthflow-signaling
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: stealthflow-signaling
+  template:
+    metadata:
+      labels:
+        app: stealthflow-signaling
+    spec:
+      containers:
+      - name: stealthflow-signaling
+        image: stealthflow/signaling:latest
+        ports:
+        - containerPort: 8765
+          name: signaling
+        env:
+        - name: SIGNALING_PORT
+          value: "8765"
+        - name: LOG_LEVEL
+          value: "INFO"
+        - name: ALLOWED_ORIGINS
+          value: "*"
+        livenessProbe:
+          tcpSocket:
+            port: 8765
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          tcpSocket:
+            port: 8765
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1001
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      restartPolicy: Always
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: stealthflow-signaling-service
+  namespace: stealthflow
+  labels:
+    app: stealthflow-signaling
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 8765
+    targetPort: 8765
+    protocol: TCP
+    name: signaling
+  selector:
+    app: stealthflow-signaling
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stealthflow-ingress
+  namespace: stealthflow
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  tls:
+  - hosts:
+    - example.com
+    - cdn1.example.com
+    - cdn2.example.com
+    - cdn3.example.com
+    secretName: stealthflow-tls
+  rules:
+  - host: example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: stealthflow-server-service
+            port:
+              number: 80
+  - host: cdn1.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: stealthflow-server-service
+            port:
+              number: 80
+  - host: cdn2.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: stealthflow-server-service
+            port:
+              number: 80
+  - host: cdn3.example.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: stealthflow-server-service
+            port:
+              number: 80
+
+---
+
+apiVersion: v1
+kind: ServiceMonitor
+metadata:
+  name: stealthflow-monitoring
+  namespace: stealthflow
+  labels:
+    app: stealthflow-server
+spec:
+  selector:
+    matchLabels:
+      app: stealthflow-server
+  endpoints:
+  - port: health
+    path: /metrics
+    interval: 30s
+
+---
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: stealthflow-pdb
+  namespace: stealthflow
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: stealthflow-server
+
+---
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: stealthflow-network-policy
+  namespace: stealthflow
+spec:
+  podSelector:
+    matchLabels:
+      app: stealthflow-server
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from: []
+    ports:
+    - protocol: TCP
+      port: 80
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 444
+  egress:
+  - {}  # Allow all egress traffic

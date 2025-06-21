@@ -1,0 +1,53 @@
+# StealthFlow Python Requirements
+
+# Core dependencies
+asyncio-mqtt>=0.11.1
+aiohttp>=3.8.0
+aiofiles>=22.1.0
+websockets>=11.0.0
+
+# WebRTC for P2P
+aiortc>=1.6.0
+aioice>=0.9.0
+
+# Configuration and data handling
+pyyaml>=6.0
+toml>=0.10.2
+configparser>=5.3.0
+
+# Networking and crypto
+requests>=2.28.0
+cryptography>=41.0.0
+pycryptodome>=3.18.0
+dnspython>=2.3.0
+
+# System utilities
+psutil>=5.9.0
+pathlib2>=2.3.7
+platform-specific>=1.0.0
+
+# GUI (optional - for desktop clients)
+tkinter-tooltip>=2.0.0
+
+# HTTP/SOCKS proxy utilities
+pysocks>=1.7.1
+urllib3>=1.26.0
+
+# Async utilities
+aiostream>=0.4.5
+asyncio-timeout>=4.0.2
+
+# Logging and monitoring
+structlog>=22.3.0
+rich>=13.0.0
+
+# Development and testing (optional)
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.0.0
+black>=22.0.0
+flake8>=5.0.0
+
+# Platform-specific dependencies
+pywin32>=304; sys_platform == "win32"
+pyobjc>=9.0; sys_platform == "darwin"

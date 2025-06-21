@@ -1,0 +1,20 @@
+apiVersion: v2
+name: stealthflow
+description: A multi-layer anti-censorship system with REALITY/Trojan protocols
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - proxy
+  - anti-censorship
+  - reality
+  - trojan
+  - xray
+home: https://github.com/soroushdeimi/sush-stealthFlow
+sources:
+  - https://github.com/soroushdeimi/sush-stealthFlow
+maintainers:
+  - name: StealthFlow Team
+    email: admin@stealthflow.org
+annotations:
+  category: Networking

@@ -1,0 +1,139 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "stealthflow.fullname" . }}
+  labels:
+    {{- include "stealthflow.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "stealthflow.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "stealthflow.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "stealthflow.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+            - name: https
+              containerPort: 443
+              protocol: TCP
+            - name: reality
+              containerPort: 444
+              protocol: TCP
+            - name: health
+              containerPort: 9000
+              protocol: TCP
+          env:
+            - name: DOMAIN
+              value: {{ .Values.config.domain | quote }}
+            - name: EMAIL
+              value: {{ .Values.config.email | quote }}
+            - name: UUID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stealthflow.fullname" . }}-secrets
+                  key: uuid
+            - name: TROJAN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stealthflow.fullname" . }}-secrets
+                  key: trojan-password
+            - name: REALITY_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stealthflow.fullname" . }}-secrets
+                  key: reality-private-key
+            - name: REALITY_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stealthflow.fullname" . }}-secrets
+                  key: reality-public-key
+            - name: REALITY_SHORT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "stealthflow.fullname" . }}-secrets
+                  key: reality-short-id
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/xray
+            - name: logs-volume
+              mountPath: /var/log
+            - name: certs-volume
+              mountPath: /etc/letsencrypt
+          {{- if .Values.healthcheck.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.healthcheck.path }}
+              port: health
+            initialDelaySeconds: {{ .Values.healthcheck.initialDelaySeconds }}
+            periodSeconds: {{ .Values.healthcheck.periodSeconds }}
+            timeoutSeconds: {{ .Values.healthcheck.timeoutSeconds }}
+            failureThreshold: {{ .Values.healthcheck.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.healthcheck.path }}
+              port: health
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: {{ .Values.healthcheck.timeoutSeconds }}
+            failureThreshold: {{ .Values.healthcheck.failureThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: config-volume
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "stealthflow.fullname" . }}-config
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: logs-volume
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "stealthflow.fullname" . }}-logs
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: certs-volume
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "stealthflow.fullname" . }}-certs
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,49 @@
+# StealthFlow P2P Signaling Server Dockerfile
+# Docker image for P2P signaling server
+
+FROM node:18-alpine
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV SIGNALING_PORT=8765
+ENV LOG_LEVEL=INFO
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S signaling -u 1001
+
+# Create necessary directories
+RUN mkdir -p /app /var/log/signaling && \
+    chown -R signaling:nodejs /app /var/log/signaling
+
+# Set working directory
+WORKDIR /app
+
+# Copy package.json and yarn.lock
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && \
+    npm cache clean --force
+
+# Copy source code
+COPY p2p/signaling/ ./
+COPY docker/signaling-entrypoint.sh /entrypoint.sh
+
+# Set permissions
+RUN chmod +x /entrypoint.sh && \
+    chown -R signaling:nodejs /app
+
+# Switch to non-root user
+USER signaling
+
+# Expose port
+EXPOSE 8765
+
+# Configure health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD node -e "const ws = require('ws'); const client = new ws('ws://localhost:${SIGNALING_PORT}'); client.on('open', () => { client.close(); process.exit(0); }); client.on('error', () => process.exit(1));"
+
+# Entry point
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["node", "signaling_server.js"]

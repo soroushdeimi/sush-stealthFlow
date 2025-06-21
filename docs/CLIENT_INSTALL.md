@@ -400,9 +400,3 @@ Currently a desktop version is provided. Mobile version is in development.
 ### Is it secure?
 Yes, all traffic is encrypted and no logs are stored.
 
-## Support
-
-- **GitHub Issues**: https://github.com/soroushdeimi/sush-stealthFlow/issues
-- **Documentation**: https://stealthflow.org/docs
-- **Telegram**: https://t.me/stealthflow
-- **Email**: support@stealthflow.org
